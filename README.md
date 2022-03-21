@@ -48,16 +48,16 @@ g++ *.cpp -pthread
 
 即可对服务器进行压力测试。
 
-### 技术要点
+## 技术要点
 
 + 根据服务器编程基本框架，将服务器分为I/O处理单元、逻辑单元、存储单元、请求队列四个模块
 + 使用多线程编程，利用线程池实现了请求队列模块
 + 使用epoll进行I/O处理，监听http的请求与响应
 + 使用状态机对http请求进行处理并填充响应，实现逻辑单元
 
-### 项目实现过程
+## 项目实现过程
 
-#### 1. 服务器编程基本框架
+### 1. 服务器编程基本框架
 
 ![](./imgs/1.png)
 
@@ -80,7 +80,7 @@ g++ *.cpp -pthread
 + 工作流程图：
   ![](./imgs/5.png)
 
-#### 2. 实现请求队列
+### 2. 实现请求队列
 
 ![](./imgs/2.png)
 
@@ -249,7 +249,7 @@ void *ThreadPool<T>::request_func(void *arg) {
 
 线程池类定义为模板类来实现，它的一个实例可以是处理http请求并进行相应的`http_process`类，模板类的任务入口函数为`void process()`，由线程池中的线程执行。
 
-#### 3. 实现I/O处理单元
+### 3. 实现I/O处理单元
 
 ![](./imgs/3.png)
 
@@ -435,7 +435,7 @@ int main(int argc, char *argv[]) {
 
 逻辑单元在`http_process.h`和`http_process.cpp`中实现，在逻辑单元中，需要使用状态机对http请求进行解析和处理，并生成相应的响应数据，代码如下：
 
-`**http_process.h**`：
+**`http_process.h`**：
 ```C++
 #ifndef _HTTP_PROCESS_H_
 #define _HTTP_PROCESS_H_
@@ -584,7 +584,7 @@ private:
 #endif
 ```
 
-`**http_process.cpp**`：
+**`http_process.cpp`**：
 
 ```C++
 #include "http_process.h"
@@ -1280,7 +1280,7 @@ void http_process::process() {
 
 请求文件的根目录在`resources`文件夹下，可以简单地代表存储单元。
 
-### 测试方法
+## 测试方法
 
 测试在虚拟机上进行，将Webserver文件夹放到虚拟机上，首先在终端里输入`ifconfig`查看虚拟机的IP地址，这里虚拟机的IP地址为`192.168.17.128`：
 
