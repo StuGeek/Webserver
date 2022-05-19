@@ -1,4 +1,8 @@
 #include "http_process.h"
+#include <iostream>
+#include <string.h>
+
+using namespace std;
 
 // http状态码
 enum HTTP_STATUS_CODE {
@@ -18,27 +22,27 @@ struct {
     {
         SUCCESS_200,
         "OK",
-        "The server successfully processed the request!"
+        "200 The server successfully processed the request!"
     },
     {
         CLIENT_ERROR_400,
         "Bad Request",
-        "The request's syntax is incorrect and the server cannot understand it!"
+        "400 The request's syntax is incorrect and the server cannot understand it!"
     },
     {
         CLIENT_ERROR_403,
         "Forbidden",
-        "The request was rejected by the server!"
+        "403 The request was rejected by the server!"
     },
     {
         CLIENT_ERROR_404,
         "Not Found",
-        "Resource not found!"
+        "404 Resource not found!"
     },
     {
         SERVER_ERROR_500,
         "Internal Server Error!",
-        "Server internal error, unable to complete the request!"
+        "500 Server internal error, unable to complete the request!"
     }
 };
 
@@ -58,9 +62,11 @@ extern void epoll_add_fd(int epoll_fd, int listen_fd, bool is_oneshot) {
 
     epoll_event event;
     event.events = EPOLLIN | EPOLLRDHUP;
+
     if (is_oneshot) {
         event.events |= EPOLLONESHOT;
     }
+
     event.data.fd = listen_fd;
     epoll_ctl(epoll_fd, EPOLL_CTL_ADD, listen_fd, &event);
 }
@@ -76,6 +82,7 @@ void epoll_modify_fd(int epoll_fd, int listen_fd, int events) {
     epoll_event event;
     // 重置EPOLLONESHOT以确保下一次可读时能够被触发
     event.events = events | EPOLLET | EPOLLONESHOT | EPOLLRDHUP;
+    
     event.data.fd = listen_fd;
     epoll_ctl(epoll_fd, EPOLL_CTL_MOD, listen_fd, &event);
 }
@@ -104,6 +111,7 @@ void http_process::init_process_data() {
     accept_language = NULL;
     content_length = 0;
 
+    is_method_post = false;
     write_index = 0;
 
     response_bytes_to_send = 0;
@@ -118,6 +126,7 @@ void http_process::init_process_data() {
 void http_process::init_process(int sockfd, const sockaddr_in& addr){
     this->socket_fd = sockfd;
     this->socket_addr = addr;
+    mysql = NULL;
     
     int ret = 0;
 
@@ -156,26 +165,39 @@ bool http_process::read() {
 
     // 读取字节大小
     int read_bytes = 0;
-    while (true) {
+    if (trig_mode == 0) {
         // 从read_buffer的read_index处开始读入数据到缓冲区中，返回读取字节大小
         read_bytes = recv(socket_fd, &read_buffer[read_index], READ_BUFFER_SIZE - read_bytes, 0);
         if (read_bytes == -1) {
-            // 非阻塞读时没有数据，说明读完，退出循环
-            if(errno == EAGAIN || errno == EWOULDBLOCK) {
-                break;
-            }
-            // 其它错误则直接返回错误
             return false;
         }
-        // 对方关闭连接，直接返回错误
-        else if (read_bytes == 0) {
-            return false;
-        }
+
         // 加上这一次读取的数据大小以更新下一次读取的起始位置
         read_index += read_bytes;
+        return true;
     }
+    else {
+        while (true) {
+            // 从read_buffer的read_index处开始读入数据到缓冲区中，返回读取字节大小
+            read_bytes = recv(socket_fd, &read_buffer[read_index], READ_BUFFER_SIZE - read_bytes, 0);
+            if (read_bytes == -1) {
+                // 非阻塞读时没有数据，说明读完，退出循环
+                if(errno == EAGAIN || errno == EWOULDBLOCK) {
+                    break;
+                }
+                // 其它错误则直接返回错误
+                return false;
+            }
+            // 对方关闭连接，直接返回错误
+            else if (read_bytes == 0) {
+                return false;
+            }
+            // 加上这一次读取的数据大小以更新下一次读取的起始位置
+            read_index += read_bytes;
+        }
 
-    return true;
+        return true;
+    }
 }
 
 // 读入解析http请求
@@ -295,6 +317,10 @@ http_process::REQUEST_PARSING_RESULT http_process::read_request_line(char* text)
     if (strcasecmp(request_method_str, "GET") == 0) {
         request_method = GET;
     }
+    else if (strcasecmp(request_method_str, "POST") == 0) {
+        request_method = POST;
+        is_method_post = true;
+    }
     // 如果没有相应的请求方法，返回请求语法错误
     else {
         return REQUEST_SYNTAX_ERROR;
@@ -311,6 +337,12 @@ http_process::REQUEST_PARSING_RESULT http_process::read_request_line(char* text)
         request_url = strchr(request_url, '/');
     }
 
+    // 去掉https://，和主机名再保存
+    if (strncasecmp(request_url, "https://", 8) == 0) {   
+        request_url += 8;
+        request_url = strchr(request_url, '/');
+    }
+
     if (!request_url || request_url[0] != '/') {
         return REQUEST_SYNTAX_ERROR;
     }
@@ -322,6 +354,11 @@ http_process::REQUEST_PARSING_RESULT http_process::read_request_line(char* text)
     }
     if (strcasecmp(request_version, "HTTP/1.1") != 0) {
         return REQUEST_SYNTAX_ERROR;
+    }
+
+    // 后面没有接请求文件，默认返回登录界面
+    if (strlen(request_url) == 1) {
+        strcat(request_url, "login.html");
     }
 
     // 状态机检查状态变为正在分析请求头
@@ -411,7 +448,7 @@ http_process::REQUEST_PARSING_RESULT http_process::read_request_headers(char* te
     }
     // 如果头部字段为其它那么打印无法识别
     else {
-        printf("This header can't be recognized: %s\n", text);
+        // printf("This header can't be recognized: %s\n", text);
     }
     // 继续读取客户端数据
     return REQUEST_NOT_COMPLETE;
@@ -421,6 +458,7 @@ http_process::REQUEST_PARSING_RESULT http_process::read_request_headers(char* te
 http_process::REQUEST_PARSING_RESULT http_process::read_request_body(char* text) {
     if (read_index >= check_index + content_length) {
         text[content_length] = '\0';
+        request_body_data = text;
         // 请求体被完整读入则返回读取完整
         return REQUEST_COMPLETE;
     }
@@ -430,10 +468,102 @@ http_process::REQUEST_PARSING_RESULT http_process::read_request_body(char* text)
 
 // 获取请求文件，将文件映射进内存request_file_address位置
 http_process::REQUEST_PARSING_RESULT http_process::get_request_file() {
-    // 将请求文件的url和根文件路径拼接，形成完整的的请求文件路径
+    // 请求文件根路径
     strcpy(request_file_path, root_path);
     int root_path_len = strlen(root_path);
-    strncpy(request_file_path + root_path_len, request_url, FILENAME_MAX_LEN - root_path_len - 1);
+    
+    // 如果请求方法是POST
+    if (is_method_post) {
+        char username[200];
+        char password[200];
+
+        // 提取用户名
+        int username_begin_index = strlen("username=");
+        int i = username_begin_index;
+        while (request_body_data[i] != '&') {
+            if (i - username_begin_index >= 200) {
+                printf("The username is too long\n");
+                return REQUEST_SYNTAX_ERROR;
+            }
+            username[i - username_begin_index] = request_body_data[i];
+            i++;
+        }
+        username[i - username_begin_index] = '\0';
+
+        // 提取密码
+        i += strlen("&password=");
+        int passwd_begin_index = i;
+        while (request_body_data[i] != '\0') {
+            if (i - passwd_begin_index >= 200) {
+                printf("The password is too long\n");
+                return REQUEST_SYNTAX_ERROR;
+            }
+            password[i - passwd_begin_index] = request_body_data[i];
+            i++;
+        }
+        password[i - passwd_begin_index] = '\0';
+
+        Mysql_Connpool *connpool = Mysql_Connpool::get_instance();
+
+        // 如果是在登录界面发起的登录POST请求
+        if (strncasecmp(request_url, "/login", 6) == 0) {
+            // 如果用户名存在且密码正确，返回欢迎界面
+            if (connpool->user_passwd.count(username) && connpool->user_passwd[username] == password) {
+                strcat(request_file_path, "/welcome.html");
+            }
+            // 否则返回登录错误界面
+            else {
+                strcat(request_file_path, "/login_error.html");
+            }
+        }
+        // 如果是在注册界面发起的注册POST请求
+        else if (strncasecmp(request_url, "/register", 9) == 0) {
+            // 如果用户名不存在
+            if (!connpool->user_passwd.count(username)) {
+                pthread_mutex_lock(&mutex_mysql_connpool);
+
+                // 构建向数据库插入新的用户名和密码的sql语句
+                char sql_statment[200];
+                int save_len = strlen("INSERT INTO user(username, passwd) VALUES('', '')");
+                
+                if (save_len + strlen(username) + strlen(password) >= 200) {
+                    printf("The username and password is too long!\n");
+                    return REQUEST_SYNTAX_ERROR;
+                }
+                
+                strcpy(sql_statment, "INSERT INTO user(username, passwd) VALUES('");
+                strcat(sql_statment, username);
+                strcat(sql_statment, "', '");
+                strcat(sql_statment, password);
+                strcat(sql_statment, "')");
+
+                // 返回插入语句结果
+                int res = mysql_query(mysql, sql_statment);
+                connpool->user_passwd[username] = password;
+
+                pthread_mutex_unlock(&mutex_mysql_connpool);
+                
+                // 如果插入失败，返回注册错误界面
+                if (res) {
+                    strcat(request_file_path, "/register_error.html");
+                }
+                // 否则返回登录界面
+                else {
+                    strcat(request_file_path, "/login.html");
+                }
+            }
+            // 用户名存在则不能注册，返回注册错误界面
+            else {
+                strcat(request_file_path, "/register_error.html");
+            }
+        }
+    }
+    // 如果请求方法是GET
+    else {
+        // 将请求文件的url和根文件路径拼接，形成完整的的请求文件路径
+        strncpy(request_file_path + root_path_len, request_url, FILENAME_MAX_LEN - root_path_len - 1);
+    }
+    
     // 如果请求文件不存在，返回相应的状态
     if (stat(request_file_path, &request_file_stat) < 0) {
         return REQUEST_NO_FILE;
@@ -641,6 +771,7 @@ bool http_process::write_response(const char* format, ...) {
     int write_len = vsnprintf(write_buffer + write_index, WRITE_BUFFER_SIZE - write_index - 1, format, ap);
     // 如果写入长度大于写缓冲区的剩余大小，返回失败
     if(write_len >= WRITE_BUFFER_SIZE - write_index - 1) {
+        va_end(ap);
         return false;
     }
     // 否则更新下一次写入的起始位置
@@ -657,9 +788,9 @@ bool http_process::write_response_status_line(const char *protocol_version, int 
 // 填充响应头
 bool http_process::write_response_headers(int response_content_len) {
     // 向响应中填充内容长度、类型、连接状态和空行
-    return write_response("Content-Length: %d\r\n", response_content_len) &&
-           write_response("Content-Type:%s\r\n", "text/html") &&
-           write_response("Connection: %s\r\n", is_keep_alive ? "keep-alive" : "close") &&
+    return write_response("Content-Length:%d\r\n", response_content_len) &&
+           /*write_response("Content-Type:%s\r\n", "text/html") &&*/
+           write_response("Connection:%s\r\n", is_keep_alive ? "keep-alive" : "close") &&
            write_response("%s", "\r\n");
 }
 

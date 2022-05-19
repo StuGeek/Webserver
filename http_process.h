@@ -18,6 +18,7 @@
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <unistd.h>
+#include "Mysql_connpool.h"
 
 class http_process {
 public:
@@ -78,6 +79,7 @@ public:
 private:
     void init_process_data();  // 初始化对http进行处理时需要的数据
 
+
     // 读取处理分析http请求
     REQUEST_PARSING_RESULT process_read();
     /* 与读取分析http请求有关的函数 */
@@ -105,10 +107,12 @@ public:
 
     static int epoll_fd;    // 所有socket上的事件由同一个epoll进行监听
     static int client_cnt;  // 所有客户端总共连接的数量
+    MYSQL *mysql;
 
 private:
     int socket_fd;            // 这个http连接到的socket
     sockaddr_in socket_addr;  // 连接对方的socket地址
+    int trig_mode;
     
     char read_buffer[READ_BUFFER_SIZE];  // 读缓冲区
     int read_index;                      // 读缓冲区中已经读入的数据的结尾的再往下一个位置
@@ -130,6 +134,10 @@ private:
     char *accept_encoding;  // 浏览器可以处理的编码方式
     char *accept_language;  // 浏览器接收的语言
     int content_length;     // 请求消息长度
+
+    bool is_method_post;                   // 请求方法是否是POST
+    char *request_body_data;               // 存储请求体数据
+    pthread_mutex_t mutex_mysql_connpool;  // 数据库连接池操作锁
 
     char write_buffer[WRITE_BUFFER_SIZE];  // 写缓冲区
     int write_index;                       // 写缓冲区中待发送的字节数
