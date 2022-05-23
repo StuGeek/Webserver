@@ -16,7 +16,7 @@ public:
     const int EPOLL_SIZE = 30000;          // epoll监听的fd个数
 
 public:
-    Webserver(int port = DEFAULT_PORT);
+    Webserver(int port = DEFAULT_PORT, bool is_log_open = true, bool is_async_write = false);
     ~Webserver();
 
     void start_server();                   // 启动服务器

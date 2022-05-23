@@ -8,20 +8,17 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <iostream>
-#include "ThreadPool.h"
-#include "http_process.h"
 #include "Webserver.h"
 
-const int DEFAULT_PORT = 8000;  // 默认端口号
-
 int main(int argc, char *argv[]) {
-    // 记录端口号
-    int port = DEFAULT_PORT;
-    if (argc > 1) {
-        port = atoi(argv[1]);
+    if (argc < 2) {
+        Webserver server;
+        server.start_server();
     }
-    printf("server port: %d\n", port);
-
-    Webserver webserver(port);
-    webserver.start_server();
+    else {
+        // 记录端口号
+        int port = atoi(argv[1]);
+        Webserver server(port);
+        server.start_server();
+    }
 }

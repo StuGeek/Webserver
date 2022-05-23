@@ -1,6 +1,8 @@
-#include "http_process.h"
 #include <iostream>
 #include <string.h>
+
+#include "http_process.h"
+#include "log.h"
 
 using namespace std;
 
@@ -56,7 +58,8 @@ extern void epoll_add_fd(int epoll_fd, int listen_fd, bool is_oneshot) {
     // 将文件描述符设置为非阻塞
     int flags = fcntl(listen_fd, F_GETFL);
     if (fcntl(listen_fd, F_SETFL, flags | O_NONBLOCK) < 0) {
-        printf("fcntl set nonblock error!\n");
+        // printf("fcntl set nonblock error!\n");
+        LOG_ERROR("%s", "fcntl set nonblock error!\n");
         exit(1);
     }
 
@@ -134,7 +137,8 @@ void http_process::init_process(int sockfd, const sockaddr_in& addr){
     int opt = 1; 
     ret = setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)); 
     if (ret < 0) {
-        printf("http_process init_process setsockopt error!\n");
+        // printf("http_process init_process setsockopt error!\n");
+        LOG_ERROR("%s", "http_process init_process setsockopt error!\n");
         exit(1);
     }
     epoll_add_fd(epoll_fd, sockfd, true);
@@ -482,7 +486,8 @@ http_process::REQUEST_PARSING_RESULT http_process::get_request_file() {
         int i = username_begin_index;
         while (request_body_data[i] != '&') {
             if (i - username_begin_index >= 200) {
-                printf("The username is too long\n");
+                // printf("The username is too long\n");
+                LOG_ERROR("%s", "The username is too long\n");
                 return REQUEST_SYNTAX_ERROR;
             }
             username[i - username_begin_index] = request_body_data[i];
@@ -495,7 +500,8 @@ http_process::REQUEST_PARSING_RESULT http_process::get_request_file() {
         int passwd_begin_index = i;
         while (request_body_data[i] != '\0') {
             if (i - passwd_begin_index >= 200) {
-                printf("The password is too long\n");
+                // printf("The password is too long\n");
+                LOG_ERROR("%s", "The password is too long\n");
                 return REQUEST_SYNTAX_ERROR;
             }
             password[i - passwd_begin_index] = request_body_data[i];
@@ -527,7 +533,8 @@ http_process::REQUEST_PARSING_RESULT http_process::get_request_file() {
                 int save_len = strlen("INSERT INTO user(username, passwd) VALUES('', '')");
                 
                 if (save_len + strlen(username) + strlen(password) >= 200) {
-                    printf("The username and password is too long!\n");
+                    // printf("The username and password is too long!\n");
+                    LOG_ERROR("%s", "The username and password is too long!\n");
                     return REQUEST_SYNTAX_ERROR;
                 }
                 
@@ -614,7 +621,8 @@ bool http_process::write() {
                     // 取消请求文件在内存中的映射并将请求文件的内存地址置为0
                     ret = munmap(request_file_address, request_file_stat.st_size);
                     if (ret < 0) {
-                        printf("munmap error!\n");
+                        // printf("munmap error!\n");
+                        LOG_ERROR("%s", "munmap error!\n");
                         exit(1);
                     }
                     request_file_address = 0;
@@ -656,7 +664,8 @@ bool http_process::write() {
                 // 取消请求文件在内存中的映射并将请求文件的内存地址置为0
                 ret = munmap(request_file_address, request_file_stat.st_size);
                 if (ret < 0) {
-                    printf("munmap error!\n");
+                    // printf("munmap error!\n");
+                    LOG_ERROR("%s", "munmap error!\n");
                     exit(1);
                 }
                 request_file_address = 0;
