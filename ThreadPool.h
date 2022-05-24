@@ -7,7 +7,7 @@
 #include <string.h>
 #include <list>
 #include "Mysql_connpool.h"
-#include "log.h"
+#include "Log.h"
 
 // 线程池类，将它定义为模板类是为了代码复用，模板参数T是任务类
 template<typename T>

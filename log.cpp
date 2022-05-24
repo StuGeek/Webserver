@@ -4,7 +4,7 @@
 #include <stdarg.h>
 #include <pthread.h>
 
-#include "log.h"
+#include "Log.h"
 
 using namespace std;
 

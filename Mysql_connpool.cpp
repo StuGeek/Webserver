@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include "Mysql_connpool.h"
-#include "log.h"
+#include "Log.h"
 
 Mysql_Connpool::Mysql_Connpool():use_conn_num(0), free_conn_num(0) {}
 
