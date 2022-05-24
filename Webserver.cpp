@@ -8,15 +8,15 @@ Webserver::Webserver(int port, bool is_log_open, bool is_async_write):
     if (is_log_open) {
         // 如果同步写入
         if (!is_async_write) {
-            Log::get_instance()->init("./Log/Log", true);
+            Log::get_instance()->init(LOG_FILE_PATH, true);
         }
         // 如果异步写入
         else {
-            Log::get_instance()->init("./Log/Log", true, 10000, 1000000, 1000, 8);
+            Log::get_instance()->init(LOG_FILE_PATH, true, 10000, 1000000, 1000, 8);
         }
     }
     else {
-        Log::get_instance()->init("./Log/Log", false);
+        Log::get_instance()->init(LOG_FILE_PATH, false);
     }
     
     // 初始化数据库连接池
@@ -30,7 +30,6 @@ Webserver::Webserver(int port, bool is_log_open, bool is_async_write):
     try {
         threadpool = new ThreadPool<http_process>(connpool);
     } catch(const std::bad_alloc &e) {
-        // printf("new ThreadPool error!\n");
         LOG_ERROR("new ThreadPool error!");
         exit(1);
     }
@@ -39,7 +38,6 @@ Webserver::Webserver(int port, bool is_log_open, bool is_async_write):
     try {
         requests = new http_process[MAX_FDS_NUM];
     } catch(const std::bad_alloc &e) {
-        // printf("new http_process error!\n");
         LOG_ERROR("new http_process error!");
         exit(1);
     }
@@ -49,8 +47,6 @@ Webserver::~Webserver() {
     // 关闭epoll句柄和服务器的套接字
     close(epoll_fd);
     close(server_socket_fd);
-    // printf("server close!\n");
-    LOG_INFO("server close!");
 
     if (requests) {
         delete [] requests;
@@ -71,7 +67,6 @@ void Webserver::initmysql_result() {
     MYSQL_RES *res = NULL;
 
     if (mysql_query(sql, "SELECT username, passwd FROM user")) {
-        // printf("mysql query error!\n");
         LOG_ERROR("mysql query error!");
     }
 
@@ -93,7 +88,6 @@ void Webserver::start_server() {
     // 创建服务器的socket
     server_socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if(server_socket_fd < 0) { 
-        // printf("server_socket_fd socket() error!\n"); 
         LOG_ERROR("server_socket_fd socket() error!"); 
         exit(1); 
     }
@@ -102,7 +96,6 @@ void Webserver::start_server() {
     int opt = 1; 
     ret = setsockopt(server_socket_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)); 
     if (ret < 0) {
-        // printf("setsockopt error!\n");
         LOG_ERROR("setsockopt error!");
         exit(1);
     }
@@ -120,22 +113,18 @@ void Webserver::start_server() {
     // 将地址与套接字进行绑定
 	ret = bind(server_socket_fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
 	if(ret < 0) {
-		// printf("bind() error!\n");
         LOG_ERROR("bind() error!");
 		close(server_socket_fd);
 		exit(1); 
 	}
-	// printf("server bind successful!\n");
     LOG_INFO("%s", "server bind successful!");
 
 	// 服务器端监听，服务器的套接字排队的最大连接个数为epoll监听的fd个数
 	ret = listen(server_socket_fd, EPOLL_SIZE);
     if (ret != 0) {
-		// printf("Server listen error!\n");
         LOG_ERROR("Server listen error!");
 		exit(1);
 	}
-  	// printf("listening...\n\n");
     LOG_INFO("%s", "listening...");
 
     // 创建epoll事件数组和epoll对象
@@ -143,7 +132,6 @@ void Webserver::start_server() {
     // 创建一个epoll句柄，记录这个epoll句柄的fd
     epoll_fd = epoll_create(EPOLL_SIZE);
     if (epoll_fd == -1) {
-        // printf("epoll_create error!\n");
         LOG_ERROR("epoll_create error!");
 		exit(1);
     }
@@ -158,7 +146,6 @@ void Webserver::start_server() {
         int event_num = epoll_wait(epoll_fd, events, MAX_EVENTS_NUM, -1);
         // 如果调用失败且不是信号中断导致默认阻塞的epoll_wait方法返回-1，那么退出
         if (event_num < 0 && errno != EINTR) {
-            // printf("epoll_wait error!\n");
             LOG_ERROR("epoll_wait error!");
             break;
         }
@@ -177,7 +164,6 @@ void Webserver::start_server() {
                 // 返回与客户端进行连接通信的套接字的fd
                 int request_socket_fd = accept(server_socket_fd, (struct sockaddr *)&client_addr, &client_addr_len);
                 if (request_socket_fd < 0) {
-                    // printf("request_socket_fd accept() error!\n");
                     LOG_ERROR("request_socket_fd accept() error!");
                     continue;
                 }

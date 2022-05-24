@@ -18,17 +18,16 @@ Log::Log() {
 Log::~Log() {
     int ret = 0;
 
-    is_end = true;
-    if (fp_log != NULL) {
-        fclose(fp_log);
-    }
-
     // 销毁信号量
     ret = sem_destroy(&sem_que_size);
     if(ret == -1) {
-        // fprintf(stderr, "sem_req_num sem_destroy() error: %s\n", strerror(ret));
-        LOG_ERROR("%s%s", "sem_req_num sem_destroy() error: ", strerror(ret))
+        LOG_ERROR("%s%s", "Log sem_destroy() error: ", strerror(ret))
         exit(1);
+    }
+
+    is_end = true;
+    if (fp_log != NULL) {
+        fclose(fp_log);
     }
 }
 
@@ -40,15 +39,13 @@ void Log::init_async_process(int log_que_capacity, int threads_num) {
 
     que_capacity = log_que_capacity;
     if (que_capacity < 1) {
-        // printf("The que_capacity of queue cann't less than 1\n");
-        LOG_ERROR("%s", "The que_capacity of queue cann't less than 1")
+        LOG_ERROR("%s", "The que_capacity of queue can't less than 1")
         exit(-1);
     }
 
     ret = sem_init(&sem_que_size, 0, 0);
     if(ret == -1) {
-        // fprintf(stderr, "sem_que_size sem_init() error: %s\n", strerror(ret));
-        LOG_ERROR("%s%s", "sem_que_size sem_init() error: ", strerror(ret));
+        LOG_ERROR("%s%s", "Log sem_init() error: ", strerror(ret));
         exit(1);
     }
 
@@ -56,7 +53,6 @@ void Log::init_async_process(int log_que_capacity, int threads_num) {
     try {
         threads = new pthread_t[threads_num];
     } catch(const std::bad_alloc &e) {
-        // printf("new log pthread_t error!");
         LOG_ERROR("%s", "new log pthread_t error!");
         exit(1);
     }
@@ -65,16 +61,14 @@ void Log::init_async_process(int log_que_capacity, int threads_num) {
     for (int i = 0; i < threads_num; ++i) {
         ret = pthread_create(&threads[i], NULL, async_write_log_func, NULL);
         if (ret != 0) {
-            // fprintf(stderr, "pthread_create error: %s\n", strerror(ret));
-            LOG_ERROR("%s%s", "pthread_create error: ", strerror(ret));
+            LOG_ERROR("%s%s", "Log pthread_create error: ", strerror(ret));
             exit(1);
         }
 
         // 设置为分离线程，自动去回收资源
         ret = pthread_detach(threads[i]);
         if (ret != 0) {
-            // fprintf(stderr, "pthread_detach error: %s\n", strerror(ret));
-            LOG_ERROR("%s%s", "pthread_detach error: ", strerror(ret));
+            LOG_ERROR("%s%s", "Log pthread_detach error: ", strerror(ret));
             exit(1);
         }
     }

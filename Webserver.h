@@ -12,8 +12,9 @@ extern void epoll_add_fd(int epoll_fd, int listen_fd, bool is_oneshot);
 
 class Webserver {
 public:
-    static const int DEFAULT_PORT = 8000;  // 默认端口号
-    const int EPOLL_SIZE = 30000;          // epoll监听的fd个数
+    static const int DEFAULT_PORT = 8000;     // 默认端口号
+    const int EPOLL_SIZE = 30000;             // epoll监听的fd个数
+    const char *LOG_FILE_PATH = "./Log/Log";  // log文件放的路径
 
 public:
     Webserver(int port = DEFAULT_PORT, bool is_log_open = true, bool is_async_write = false);

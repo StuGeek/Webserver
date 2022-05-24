@@ -36,13 +36,11 @@ void Mysql_Connpool::init_mysql_connpool(const char *host, const char *user,
         MYSQL *sql = NULL;
         sql = mysql_init(sql);
         if (!sql) {
-            // printf("mysql_init error!\n");
             LOG_ERROR("mysql_init error!");
         }
 
         sql = mysql_real_connect(sql, host, user, passwd, db_name, port, NULL, 0);
         if (!sql) {
-            // printf("mysql_real_connect error!\n");
             LOG_ERROR("mysql_real_connect error!");
         }
 
@@ -57,7 +55,6 @@ void Mysql_Connpool::init_mysql_connpool(const char *host, const char *user,
 MYSQL *Mysql_Connpool::get_mysql_conn() {
     MYSQL *sql = NULL;
     if (conn_que.size() == 0) {
-        // printf("mysql_connpool busy!\n");
         LOG_ERROR("mysql_connpool busy!");
         return NULL;
     }
@@ -115,7 +112,6 @@ Mysql_Connpool* Mysql_Connpool::get_instance() {
 // 获取连接池资源时初始化的构造函数
 Mysql_conn_RAII::Mysql_conn_RAII(MYSQL **sql, Mysql_Connpool *connpool) {
 	if (!connpool) {
-        // printf("connection pool is not existed!\n");
         LOG_ERROR("connection pool is not existed!");
         return;
     }

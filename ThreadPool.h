@@ -43,14 +43,12 @@ ThreadPool<T>::ThreadPool(Mysql_Connpool *connpool, int threads_num, int req_max
 
     // 线程池中的线程数要大于0
     if (threads_num <= 0) {
-        // printf("The number of threads should be more than zero!\n");
         LOG_ERROR("The number of threads should be more than zero!");
         exit(1);
     }
 
     // 请求队列中的最大请求数要大于0
     if (req_max_num <= 0) {
-        // printf("The max number of requests should be more than zero!\n");
         LOG_ERROR("The max number of requests should be more than zero!");
         exit(1);
     }
@@ -59,14 +57,12 @@ ThreadPool<T>::ThreadPool(Mysql_Connpool *connpool, int threads_num, int req_max
     try {
         threads = new pthread_t[threads_num];
     } catch(const std::bad_alloc &e) {
-        // printf("new pthread_t error!\n");
         LOG_ERROR("new pthread_t error!");
         exit(1);
     }
 
     ret = sem_init(&sem_req_num, 0, 0);
     if(ret == -1) {
-        // fprintf(stderr, "sem_req_num sem_init() error: %s\n", strerror(ret));
         LOG_ERROR("%s%s", "sem_req_num sem_init() error: ", strerror(ret));
         exit(1);
     }
@@ -75,7 +71,6 @@ ThreadPool<T>::ThreadPool(Mysql_Connpool *connpool, int threads_num, int req_max
     for (int i = 0; i < threads_num; ++i) {
         ret = pthread_create(&threads[i], NULL, run, this);
         if (ret != 0) {
-            // fprintf(stderr, "pthread_create error: %s\n", strerror(ret));
             LOG_ERROR("%s%s", "pthread_create error: ", strerror(ret));
             exit(1);
         }
@@ -83,7 +78,6 @@ ThreadPool<T>::ThreadPool(Mysql_Connpool *connpool, int threads_num, int req_max
         // 设置为分离线程，自动去回收资源
         ret = pthread_detach(threads[i]);
         if (ret != 0) {
-            // fprintf(stderr, "pthread_detach error: %s\n", strerror(ret));
             LOG_ERROR("%s%s", "pthread_detach error: ", strerror(ret));
             exit(1);
         }
@@ -100,8 +94,7 @@ ThreadPool<T>::~ThreadPool() {
     // 销毁信号量
     ret = sem_destroy(&sem_req_num);
     if(ret == -1) {
-        // fprintf(stderr, "sem_req_num sem_destroy() error: %s\n", strerror(ret));
-        LOG_ERROR("%s%s", "sem_req_num sem_destroy() error: ", strerror(ret));
+        fprintf(stderr, "ThreadPoll sem_destroy() error: %s\n", strerror(ret));
         exit(1);
     }
 }
