@@ -115,7 +115,7 @@ g++ *.cpp -lpthread -lmysqlclient
 
 #### 3. I/O处理单元
 
-I/O处理单元在`Webserver.cpp`中实现，在启动服务器的方法`start_server()`中，创建了一个服务器的套接字，使用epoll和LT触发模式对客户端发送来的请求进行I/O处理。
+I/O处理单元在`Webserver.cpp`中实现，在启动服务器的方法`start_server()`中，创建了一个服务器的套接字，使用epoll和ET触发模式对客户端发送来的请求进行I/O处理。
 
 #### 4. 逻辑单元
 

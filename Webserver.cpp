@@ -144,7 +144,7 @@ void Webserver::start_server() {
     while (true) {
         // 获取epoll句柄需要处理的事件数目
         int event_num = epoll_wait(epoll_fd, events, MAX_EVENTS_NUM, -1);
-        // 如果调用失败且不是信号中断导致默认阻塞的epoll_wait方法返回-1，那么退出
+        // 如果调用失败，且不是信号中断导致默认阻塞的epoll_wait方法返回-1，那么退出
         if (event_num < 0 && errno != EINTR) {
             LOG_ERROR("epoll_wait error!");
             break;
@@ -152,7 +152,7 @@ void Webserver::start_server() {
 
         // 遍历要处理的事件
         for (int i = 0; i < event_num; ++i) {
-            // 获取epoll中的监听的事件和事件的fd
+            // 获取epoll中的监听事件和事件的fd
             int event_fd = events[i].data.fd;
             auto event = events[i].events;
             // 如果服务器套接字监听到有事件，说明客户端有http请求连接
